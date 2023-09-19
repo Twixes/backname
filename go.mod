@@ -2,9 +2,11 @@ module github.com/Twixes/backname
 
 go 1.20
 
-require rsc.io/quote v1.5.2
+require github.com/miekg/dns v1.1.56
 
 require (
-	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
-	rsc.io/sampler v1.3.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 )
