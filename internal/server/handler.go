@@ -37,18 +37,18 @@ func init() {
 
 type DNSHandler struct{}
 
-func resolve(question dns.Question) (dns.RR, int) {
+func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 	log.Printf("Resolving %s records for %s\n", dns.TypeToString[question.Qtype], question.Name)
 
 	nameParts := strings.Split(strings.TrimSuffix(question.Name, "."), ".")
 
 	// Make sure that the name from the question lies within the zone
 	if len(nameParts) < len(zoneParts) {
-		return nil, dns.RcodeNotZone
+		return nil, nil, dns.RcodeNotZone
 	}
 	for i := 1; i <= len(zoneParts); i++ {
 		if nameParts[len(nameParts)-i] != zoneParts[len(zoneParts)-i] {
-			return nil, dns.RcodeNotZone
+			return nil, nil, dns.RcodeNotZone
 		}
 	}
 
@@ -61,7 +61,7 @@ func resolve(question dns.Question) (dns.RR, int) {
 			var err error
 			address, err = parseIPv4(subdomains)
 			if err != nil {
-				return nil, dns.RcodeNameError
+				return nil, nil, dns.RcodeNameError
 			}
 		}
 		return &dns.A{
@@ -72,12 +72,12 @@ func resolve(question dns.Question) (dns.RR, int) {
 				Ttl:    0, // TODO
 			},
 			A: address,
-		}, dns.RcodeSuccess
+		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeAAAA {
 		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
 		address, err := parseIPv6(subdomains)
 		if err != nil {
-			return nil, dns.RcodeNameError
+			return nil, nil, dns.RcodeNameError
 		}
 		return &dns.AAAA{
 			Hdr: dns.RR_Header{
@@ -87,7 +87,7 @@ func resolve(question dns.Question) (dns.RR, int) {
 				Ttl:    0, // TODO
 			},
 			AAAA: address,
-		}, dns.RcodeSuccess
+		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeCNAME {
 		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
 		if siteCname != "" && len(subdomains) > 0 && !(len(subdomains) == 1 && subdomains[0] == "www") {
@@ -99,21 +99,29 @@ func resolve(question dns.Question) (dns.RR, int) {
 					Ttl:    0, // TODO
 				},
 				Target: siteCname + "." + zone + ".",
-			}, dns.RcodeSuccess
+			}, nil, dns.RcodeSuccess
 		}
 	} else if question.Qtype == dns.TypeNS {
 		return &dns.NS{
-			Hdr: dns.RR_Header{
-				Name:   question.Name,
-				Rrtype: dns.TypeNS,
-				Class:  dns.ClassINET,
-				Ttl:    0, // TODO
-			},
-			Ns: nameserverSubdomain + "." + zone + ".",
-		}, dns.RcodeSuccess
+				Hdr: dns.RR_Header{
+					Name:   question.Name,
+					Rrtype: dns.TypeNS,
+					Class:  dns.ClassINET,
+					Ttl:    0, // TODO
+				},
+				Ns: nameserverSubdomain + "." + zone + ".",
+			}, &dns.A{ // The glue record
+				Hdr: dns.RR_Header{
+					Name:   question.Name,
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    0, // TODO
+				},
+				A: nameserverPublicIPv4,
+			}, dns.RcodeSuccess
 	}
 
-	return nil, dns.RcodeServerFailure // TODO: Improve this handling, in particular determine subdomain existence early
+	return nil, nil, dns.RcodeServerFailure // TODO: Improve this handling, in particular determine subdomain existence early
 }
 
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -129,9 +137,12 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	question := r.Question[0]
-	answer, rcode := resolve(question)
+	answer, extra, rcode := resolve(question)
 	if answer != nil {
 		msg.Answer = append(msg.Answer, answer)
+	}
+	if extra != nil {
+		msg.Extra = append(msg.Extra, extra)
 	}
 	msg.SetRcode(r, rcode)
 
