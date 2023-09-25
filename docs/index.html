@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Backname</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            html,
+            body,
+            .content {
+                height: 100%;
+            }
+            body {
+                margin: 0 auto;
+                max-width: fit-content;
+                padding: 1.5rem 1rem;
+                box-sizing: border-box;
+                font-family: "DM Sans", sans-serif;
+                font-weight: 500;
+            }
+            h1 {
+                font-size: 2rem;
+                margin: 0 0 1.5rem;
+            }
+            ul {
+                padding: 0;
+                margin: 0 0 1.5rem;
+                list-style: none;
+                font-size: 1rem;
+                white-space: nowrap;
+            }
+            li {
+                margin: 0 0 0.75rem;
+            }
+            a {
+                color: inherit;
+            }
+            footer {
+                font-size: 0.875rem;
+            }
+            footer,
+            .resolves {
+                color: rgba(0, 0, 0, 0.5);
+            }
+            .resolves {
+                cursor: help;
+            }
+            @media screen and (min-width: 32rem) {
+                body {
+                    padding: 3rem 1.5rem 1.5rem;
+                }
+                ul {
+                    font-size: 1.25rem;
+                }
+                footer {
+                    font-size: 1rem;
+                }
+            }
+            @media screen and (min-width: 66rem) {
+                body {
+                    padding: 6rem 6rem 1.5rem;
+                }
+                br {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Every IP address has its Backname™.</h1>
+        <ul>
+            <li>
+                127.0.0.1
+                <br /><span class="resolves" title="This domain resolves to an A record with that IP address.">→</span>
+                127.0.0.1.backname.dev
+            </li>
+            <li>
+                142.250.147.138
+                <br /><span class="resolves" title="This domain resolves to an A record with that IP address.">→</span>
+                142.250.147.138.backname.dev
+            </li>
+            <li>
+                2001:0db8:85a3:0000:0000:8a2e:0370:7334
+                <br /><span class="resolves" title="This domain resolves to an AAAA record with that IP address."
+                    >→</span
+                >
+                2001.0db8.[...].0370.7334.backname.dev
+            </li>
+        </ul>
+        <footer>
+            This is an <a href="https://github.com/Twixes/backname">open-source</a> public service by
+            <a href="https://matloka.com">Michael Matloka</a>.
+        </footer>
+    </body>
+</html>
