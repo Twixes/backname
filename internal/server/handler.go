@@ -57,7 +57,7 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 		var address net.IP
 		if len(subdomains) == 1 && strings.ToLower(subdomains[0]) == strings.ToLower(nameserverSubdomain) {
 			address = nameserverPublicIPv4
-		} else {
+		} else if len(subdomains) > 0 {
 			var err error
 			address, err = parseIPv4(subdomains)
 			if err != nil {
@@ -75,9 +75,13 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeAAAA {
 		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
-		address, err := parseIPv6(subdomains)
-		if err != nil {
-			return nil, nil, dns.RcodeNameError
+		var address net.IP
+		var err error
+		if len(subdomains) > 0 {
+			address, err = parseIPv6(subdomains)
+			if err != nil {
+				return nil, nil, dns.RcodeNameError
+			}
 		}
 		return &dns.AAAA{
 			Hdr: dns.RR_Header{
