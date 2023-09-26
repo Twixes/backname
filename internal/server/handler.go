@@ -26,27 +26,26 @@ func init() {
 
 	if websiteIPv4sRaw := os.Getenv("WEBSITE_A"); websiteIPv4sRaw != "" {
 		for _, websiteIPv4Raw := range strings.Split(websiteIPv4sRaw, ",") {
-			if websiteIPv4, err := parseIPv4(strings.Split(websiteIPv4Raw, ".")); err == nil {
+			if websiteIPv4 := net.ParseIP(websiteIPv4Raw); websiteIPv4 != nil {
 				websiteIPv4s = append(websiteIPv4s, websiteIPv4)
 			} else {
-				log.Fatalf("WEBSITE_A environment variable is invalid: %s", err)
+				log.Fatalf("WEBSITE_A environment variable is invalid: %s", websiteIPv4Raw)
 			}
 		}
 	}
 	if websiteIPv6sRaw := os.Getenv("WEBSITE_AAAA"); websiteIPv6sRaw != "" {
 		for _, websiteIPv6Raw := range strings.Split(websiteIPv6sRaw, ",") {
-			if websiteIPv6, err := parseIPv6(strings.Split(websiteIPv6Raw, ".")); err == nil {
+			if websiteIPv6 := net.ParseIP(websiteIPv6Raw); websiteIPv6 != nil {
 				websiteIPv6s = append(websiteIPv6s, websiteIPv6)
 			} else {
-				log.Fatalf("WEBSITE_AAAA environment variable is invalid: %s", err)
+				log.Fatalf("WEBSITE_AAAA environment variable is invalid: %s", websiteIPv6s)
 			}
 		}
 	}
 
 	if nameserverPublicIPv4Raw := os.Getenv("NAMESERVER_PUBLIC_IPV4"); nameserverPublicIPv4Raw != "" {
-		var err error
-		nameserverPublicIPv4, err = parseIPv4(strings.Split(nameserverPublicIPv4Raw, "."))
-		if err != nil {
+		nameserverPublicIPv4 = net.ParseIP(nameserverPublicIPv4Raw)
+		if nameserverPublicIPv4 == nil {
 			log.Fatal("NAMESERVER_PUBLIC_IPV4 environment variable is invalid")
 		}
 	} else {
