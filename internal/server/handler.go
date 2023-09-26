@@ -69,6 +69,7 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 		return nil, dns.RcodeNotZone
 	}
 
+	// Determine subdomains
 	subdomainsString := strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(question.Name), zone), ".")
 	var subdomains []string
 	if subdomainsString != "" {
@@ -77,6 +78,14 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 
 	// Verify domain existence and determine records
 	var records []dns.RR
+	code := dns.RcodeSuccess
+
+	if question.Qtype == dns.TypeNS { // NS records are available everywhere in the zone, even for non-existens domains
+		records = append(records, &dns.NS{
+			Ns: "ns." + zone,
+		})
+	}
+
 	if len(subdomains) == 0 { // <zone>
 		switch question.Qtype {
 		case dns.TypeA:
@@ -123,16 +132,10 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 			})
 		}
 	} else {
-		return nil, dns.RcodeNameError
+		code = dns.RcodeNameError
 	}
 
-	if question.Qtype == dns.TypeNS { // Any domain in zone
-		records = append(records, &dns.NS{
-			Ns: "ns." + zone,
-		})
-	}
-
-	return records, dns.RcodeSuccess
+	return records, code
 }
 
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
