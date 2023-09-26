@@ -11,8 +11,9 @@ import (
 
 var (
 	zone                 = strings.ToLower(os.Getenv("ZONE"))
-	websiteIPv4s         []net.IP
-	websiteIPv6s         []net.IP
+	websiteWWWCNAME      = strings.ToLower(os.Getenv("WEBSITE_WWW_CNAME"))
+	websiteA             []net.IP
+	websiteAAAA          []net.IP
 	nameserverPublicIPv4 net.IP
 )
 
@@ -24,10 +25,14 @@ func init() {
 		zone += "."
 	}
 
+	if websiteWWWCNAME != "" && !strings.HasSuffix(websiteWWWCNAME, ".") {
+		websiteWWWCNAME += "."
+	}
+
 	if websiteIPv4sRaw := os.Getenv("WEBSITE_A"); websiteIPv4sRaw != "" {
 		for _, websiteIPv4Raw := range strings.Split(websiteIPv4sRaw, ",") {
 			if websiteIPv4 := net.ParseIP(websiteIPv4Raw); websiteIPv4 != nil {
-				websiteIPv4s = append(websiteIPv4s, websiteIPv4)
+				websiteA = append(websiteA, websiteIPv4)
 			} else {
 				log.Fatalf("WEBSITE_A environment variable is invalid: %s", websiteIPv4Raw)
 			}
@@ -36,9 +41,9 @@ func init() {
 	if websiteIPv6sRaw := os.Getenv("WEBSITE_AAAA"); websiteIPv6sRaw != "" {
 		for _, websiteIPv6Raw := range strings.Split(websiteIPv6sRaw, ",") {
 			if websiteIPv6 := net.ParseIP(websiteIPv6Raw); websiteIPv6 != nil {
-				websiteIPv6s = append(websiteIPv6s, websiteIPv6)
+				websiteAAAA = append(websiteAAAA, websiteIPv6)
 			} else {
-				log.Fatalf("WEBSITE_AAAA environment variable is invalid: %s", websiteIPv6s)
+				log.Fatalf("WEBSITE_AAAA environment variable is invalid: %s", websiteAAAA)
 			}
 		}
 	}
@@ -75,13 +80,13 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 	if len(subdomains) == 0 { // <zone>
 		switch question.Qtype {
 		case dns.TypeA:
-			for _, websiteIPv4 := range websiteIPv4s {
+			for _, websiteIPv4 := range websiteA {
 				records = append(records, &dns.A{
 					A: websiteIPv4,
 				})
 			}
 		case dns.TypeAAAA:
-			for _, websiteIPv6 := range websiteIPv6s {
+			for _, websiteIPv6 := range websiteAAAA {
 				records = append(records, &dns.AAAA{
 					AAAA: websiteIPv6,
 				})
@@ -90,9 +95,11 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 	} else if len(subdomains) == 1 && subdomains[0] == "www" { // www.<zone>
 		switch question.Qtype {
 		case dns.TypeCNAME:
-			records = append(records, &dns.CNAME{
-				Target: zone,
-			})
+			if websiteWWWCNAME != "" {
+				records = append(records, &dns.CNAME{
+					Target: websiteWWWCNAME,
+				})
+			}
 		}
 	} else if len(subdomains) == 1 && subdomains[0] == "ns" { // ns.<zone>
 		switch question.Qtype {
