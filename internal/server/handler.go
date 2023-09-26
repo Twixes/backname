@@ -47,7 +47,7 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 		return nil, nil, dns.RcodeNotZone
 	}
 	for i := 1; i <= len(zoneParts); i++ {
-		if nameParts[len(nameParts)-i] != zoneParts[len(zoneParts)-i] {
+		if strings.ToLower(nameParts[len(nameParts)-i]) != strings.ToLower(zoneParts[len(zoneParts)-i]) {
 			return nil, nil, dns.RcodeNotZone
 		}
 	}
@@ -55,7 +55,7 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 	if question.Qtype == dns.TypeA {
 		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
 		var address net.IP
-		if len(subdomains) == 1 && subdomains[0] == nameserverSubdomain {
+		if len(subdomains) == 1 && strings.ToLower(subdomains[0]) == strings.ToLower(nameserverSubdomain) {
 			address = nameserverPublicIPv4
 		} else {
 			var err error
@@ -90,7 +90,7 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeCNAME {
 		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
-		if siteCname != "" && len(subdomains) > 0 && !(len(subdomains) == 1 && subdomains[0] == "www") {
+		if siteCname != "" && len(subdomains) > 0 && !(len(subdomains) == 1 && strings.ToLower(subdomains[0]) == "www") {
 			return &dns.CNAME{
 				Hdr: dns.RR_Header{
 					Name:   question.Name,
