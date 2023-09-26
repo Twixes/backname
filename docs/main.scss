@@ -1,0 +1,62 @@
+---
+---
+
+html,
+body,
+.content {
+    height: 100%;
+}
+body {
+    margin: 0 auto;
+    max-width: fit-content;
+    padding: 2rem 1rem;
+    box-sizing: border-box;
+    font-family: "DM Sans", "SF Pro Text", "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
+    font-weight: 500;
+    line-height: 1.4;
+}
+h1 {
+    font-size: 2.125rem;
+    font-weight: 500;
+    margin: 0 0 2rem;
+    line-height: 1.2;
+}
+ul {
+    padding: 0;
+    margin: 0 0 2rem;
+    list-style: none;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+li {
+    margin: 0 0 1rem;
+}
+a {
+    color: inherit;
+}
+footer {
+    font-size: 0.875rem;
+}
+footer,
+.resolves {
+    color: rgba(0, 0, 0, 0.5);
+}
+@media screen and (min-width: 40rem) {
+    body {
+        padding: 3rem 2rem 2em;
+    }
+    ul {
+        font-size: 1.25rem;
+    }
+    footer {
+        font-size: 1rem;
+    }
+}
+@media screen and (min-width: 70rem) {
+    body {
+        padding: 6rem 6rem 2rem;
+    }
+    br {
+        display: none;
+    }
+}

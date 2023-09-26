@@ -22,3 +22,10 @@ go.work
 
 # macOS
 .DS_Store
+
+# Build output
+/backname
+
+# Website
+docs/_site/
+docs/vendor/

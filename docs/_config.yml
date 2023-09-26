@@ -1,0 +1,7 @@
+title: Backname
+description: Every IP address has its Backname.
+twitter:
+    card: summary_large_image
+
+plugins:
+    - jekyll-seo-tag
