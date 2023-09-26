@@ -10,10 +10,8 @@ import (
 )
 
 var (
-	zone                 = os.Getenv("ZONE")
-	zoneParts            = strings.Split(zone, ".")
-	nameserverSubdomain  = os.Getenv("NAMESERVER_SUBDOMAIN")
-	siteCname            = os.Getenv("SITE_CNAME")
+	zone                 = strings.ToLower(os.Getenv("ZONE"))
+	siteCname            = strings.TrimPrefix(strings.ToLower(os.Getenv("SITE_CNAME")), ".")
 	nameserverPublicIPv4 net.IP
 )
 
@@ -21,8 +19,11 @@ func init() {
 	if zone == "" {
 		log.Fatal("ZONE environment variable must be set")
 	}
-	if nameserverSubdomain == "" {
-		nameserverSubdomain = "ns"
+	if !strings.HasSuffix(zone, ".") {
+		zone += "."
+	}
+	if siteCname != "" && !strings.HasSuffix(siteCname, ".") {
+		siteCname += "."
 	}
 	if nameserverPublicIPv4Raw := os.Getenv("NAMESERVER_PUBLIC_IPV4"); nameserverPublicIPv4Raw != "" {
 		var err error
@@ -37,101 +38,73 @@ func init() {
 
 type DNSHandler struct{}
 
+// Resolve a question into an answer, an extra record and a response code
 func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 	log.Printf("Resolving %s records for %s\n", dns.TypeToString[question.Qtype], question.Name)
 
-	nameParts := strings.Split(strings.TrimSuffix(question.Name, "."), ".")
-
 	// Make sure that the name from the question lies within the zone
-	if len(nameParts) < len(zoneParts) {
+	if !strings.HasSuffix(strings.ToLower(question.Name), zone) {
 		return nil, nil, dns.RcodeNotZone
 	}
-	for i := 1; i <= len(zoneParts); i++ {
-		if strings.ToLower(nameParts[len(nameParts)-i]) != strings.ToLower(zoneParts[len(zoneParts)-i]) {
-			return nil, nil, dns.RcodeNotZone
-		}
+
+	subdomainsString := strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(question.Name), zone), ".")
+	var subdomains []string
+	if subdomainsString != "" {
+		subdomains = strings.Split(subdomainsString, ".")
+	}
+
+	// Verify domain existence
+	var recordA net.IP
+	var recordAAAA net.IP
+	var recordCNAME string
+	var recordNS string = "ns." + zone
+	var recordNSGlueA net.IP = nameserverPublicIPv4 // TODO This may not be needed
+	if len(subdomains) == 0 || (len(subdomains) == 1 && subdomains[0] == "www") {
+		recordCNAME = siteCname
+	} else if len(subdomains) == 1 && subdomains[0] == "ns" {
+		recordA = nameserverPublicIPv4
+	} else if subdomainIPv4, _ := parseIPv4(subdomains); subdomainIPv4 != nil {
+		recordA = subdomainIPv4
+	} else if subdomainIPv6, _ := parseIPv6(subdomains); subdomainIPv6 != nil {
+		recordAAAA = subdomainIPv6
+	} else {
+		return nil, nil, dns.RcodeNameError
 	}
 
 	if question.Qtype == dns.TypeA {
-		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
-		var address net.IP
-		if len(subdomains) == 1 && strings.ToLower(subdomains[0]) == strings.ToLower(nameserverSubdomain) {
-			address = nameserverPublicIPv4
-		} else if len(subdomains) > 0 && strings.ToLower(subdomains[0]) != "www" {
-			var err error
-			address, err = parseIPv4(subdomains)
-			if err != nil {
-				return nil, nil, dns.RcodeNameError
-			}
+		if recordA != nil {
+			return &dns.A{
+				A: recordA,
+			}, nil, dns.RcodeSuccess
 		}
-		return &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   question.Name,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    0, // TODO
-			},
-			A: address,
-		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeAAAA {
-		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
-		var address net.IP
-		var err error
-		if len(subdomains) > 0 && strings.ToLower(subdomains[0]) != "www" {
-			address, err = parseIPv6(subdomains)
-			if err != nil {
-				return nil, nil, dns.RcodeNameError
-			}
+		if recordAAAA != nil {
+			return &dns.AAAA{
+				AAAA: recordAAAA,
+			}, nil, dns.RcodeSuccess
 		}
-		return &dns.AAAA{
-			Hdr: dns.RR_Header{
-				Name:   question.Name,
-				Rrtype: dns.TypeAAAA,
-				Class:  dns.ClassINET,
-				Ttl:    0, // TODO
-			},
-			AAAA: address,
-		}, nil, dns.RcodeSuccess
 	} else if question.Qtype == dns.TypeCNAME {
-		subdomains := nameParts[:len(nameParts)-len(zoneParts)]
-		if siteCname != "" && len(subdomains) > 0 && !(len(subdomains) == 1 && strings.ToLower(subdomains[0]) == "www") {
+		log.Printf("CNAME: %s\n", recordCNAME)
+		if recordCNAME != "" {
 			return &dns.CNAME{
-				Hdr: dns.RR_Header{
-					Name:   question.Name,
-					Rrtype: dns.TypeCNAME,
-					Class:  dns.ClassINET,
-					Ttl:    0, // TODO
-				},
-				Target: siteCname + "." + zone + ".",
+				Target: siteCname,
 			}, nil, dns.RcodeSuccess
 		}
 	} else if question.Qtype == dns.TypeNS {
 		return &dns.NS{
-				Hdr: dns.RR_Header{
-					Name:   question.Name,
-					Rrtype: dns.TypeNS,
-					Class:  dns.ClassINET,
-					Ttl:    0, // TODO
-				},
-				Ns: nameserverSubdomain + "." + zone + ".",
+				Ns: recordNS,
 			}, &dns.A{ // The glue record
-				Hdr: dns.RR_Header{
-					Name:   question.Name,
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    0, // TODO
-				},
-				A: nameserverPublicIPv4,
+				A: recordNSGlueA,
 			}, dns.RcodeSuccess
 	}
 
-	return nil, nil, dns.RcodeSuccess // TODO: Improve this handling, in particular determine subdomain existence early
+	return nil, nil, dns.RcodeSuccess
 }
 
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := new(dns.Msg)
 	msg.SetReply(r)
-	msg.Authoritative = true // TODO: Is this right?
+	msg.Authoritative = true
 
 	// Refuse if there are multiple question resource records
 	if len(r.Question) != 1 {
@@ -143,9 +116,33 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	question := r.Question[0]
 	answer, extra, rcode := resolve(question)
 	if answer != nil {
+		header := answer.Header() // Fill in header boilerplate
+		header.Class = dns.ClassINET
+		header.Name = question.Name
+		header.Ttl = 0 // TODO
+		switch question.Qtype {
+		case dns.TypeA:
+			header.Rrtype = dns.TypeA
+		case dns.TypeAAAA:
+			header.Rrtype = dns.TypeAAAA
+		case dns.TypeCNAME:
+			header.Rrtype = dns.TypeCNAME
+		}
 		msg.Answer = append(msg.Answer, answer)
 	}
 	if extra != nil {
+		header := extra.Header() // Fill in header boilerplate
+		header.Class = dns.ClassINET
+		header.Name = question.Name
+		header.Ttl = 0 // TODO
+		switch question.Qtype {
+		case dns.TypeA:
+			header.Rrtype = dns.TypeA
+		case dns.TypeAAAA:
+			header.Rrtype = dns.TypeAAAA
+		case dns.TypeCNAME:
+			header.Rrtype = dns.TypeCNAME
+		}
 		msg.Extra = append(msg.Extra, extra)
 	}
 	msg.SetRcode(r, rcode)
