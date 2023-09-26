@@ -29,3 +29,6 @@ go.work
 # Website
 docs/_site/
 docs/vendor/
+
+# Config
+.env

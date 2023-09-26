@@ -1,0 +1,13 @@
+version: "3"
+services:
+  dns:
+    build: .
+    restart: on-failure
+    ports:
+      - "53:53/udp"
+    environment:
+      - ZONE
+      - WEBSITE_WWW_CNAME
+      - WEBSITE_A
+      - WEBSITE_AAAA
+      - NAMESERVER_PUBLIC_IPV4
