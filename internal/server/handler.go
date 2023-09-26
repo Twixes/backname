@@ -127,6 +127,8 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			header.Rrtype = dns.TypeAAAA
 		case dns.TypeCNAME:
 			header.Rrtype = dns.TypeCNAME
+		case dns.TypeNS:
+			header.Rrtype = dns.TypeNS
 		}
 		msg.Answer = append(msg.Answer, answer)
 	}
@@ -135,14 +137,7 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		header.Class = dns.ClassINET
 		header.Name = question.Name
 		header.Ttl = 0 // TODO
-		switch question.Qtype {
-		case dns.TypeA:
-			header.Rrtype = dns.TypeA
-		case dns.TypeAAAA:
-			header.Rrtype = dns.TypeAAAA
-		case dns.TypeCNAME:
-			header.Rrtype = dns.TypeCNAME
-		}
+		header.Rrtype = dns.TypeA
 		msg.Extra = append(msg.Extra, extra)
 	}
 	msg.SetRcode(r, rcode)
