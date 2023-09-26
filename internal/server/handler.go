@@ -69,12 +69,8 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 		return nil, dns.RcodeNotZone
 	}
 
-	// Determine subdomains
-	subdomainsString := strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(question.Name), zone), ".")
-	var subdomains []string
-	if subdomainsString != "" {
-		subdomains = strings.Split(subdomainsString, ".")
-	}
+	// Determine subdomain
+	subdomain := strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(question.Name), zone), ".")
 
 	// Verify domain existence and determine records
 	var records []dns.RR
@@ -86,7 +82,7 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 		})
 	}
 
-	if len(subdomains) == 0 { // <zone>
+	if len(subdomain) == 0 { // <zone>
 		switch question.Qtype {
 		case dns.TypeA:
 			for _, websiteIPv4 := range websiteA {
@@ -101,7 +97,7 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		}
-	} else if len(subdomains) == 1 && subdomains[0] == "www" { // www.<zone>
+	} else if subdomain == "www" { // www.<zone>
 		switch question.Qtype {
 		case dns.TypeCNAME:
 			if websiteWWWCNAME != "" {
@@ -110,21 +106,21 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		}
-	} else if len(subdomains) == 1 && subdomains[0] == "ns" { // ns.<zone>
+	} else if subdomain == "ns" { // ns.<zone>
 		switch question.Qtype {
 		case dns.TypeA:
 			records = append(records, &dns.A{
 				A: nameserverPublicIPv4,
 			})
 		}
-	} else if subdomainIPv4, _ := parseIPv4(subdomains); subdomainIPv4 != nil { // <ipv4>.<zone>
+	} else if subdomainIPv4 := parseIPv4Subdomain(subdomain); subdomainIPv4 != nil { // <ipv4>.<zone>
 		switch question.Qtype {
 		case dns.TypeA:
 			records = append(records, &dns.A{
 				A: subdomainIPv4,
 			})
 		}
-	} else if subdomainIPv6, _ := parseIPv6(subdomains); subdomainIPv6 != nil { // <ipv6>.<zone>
+	} else if subdomainIPv6 := parseIPv6Subdomain(subdomain); subdomainIPv6 != nil { // <ipv6>.<zone>
 		switch question.Qtype {
 		case dns.TypeAAAA:
 			records = append(records, &dns.AAAA{
@@ -156,7 +152,7 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		header := answer.Header() // Fill in header boilerplate
 		header.Class = dns.ClassINET
 		header.Name = question.Name
-		header.Ttl = 0 // TODO
+		header.Ttl = 3600 // TODO: Increase when tests are comphrensive enough
 		switch question.Qtype {
 		case dns.TypeA:
 			header.Rrtype = dns.TypeA

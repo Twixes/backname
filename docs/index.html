@@ -5,30 +5,39 @@ image:
     height: 640
     width: 1280
 ---
-<h1>Every IP address has its Backname™.</h1>
+
+<h1>Every IP address has its Backname™.</h1>
 <ul>
     <li>
-        127.0.0.1.backname.io
-        <br /><span class="resolves">resolves to</span>
-        127.0.0.1
+        <p>
+            142.250.147.138.backname.io
+            <br /><span class="muted">resolves to</span> 142.250.147.138
+        </p>
+        <small>IPv4 with dots</small>
     </li>
     <li>
-        142.250.147.138.backname.io
-        <br /><span class="resolves">resolves to</span>
-        142.250.147.138
+        <p>
+            127-0-0-1.backname.io
+            <br /><span class="muted">resolves to</span> 127.0.0.1
+        </p>
+        <small>IPv4 with hyphens</small>
     </li>
     <li>
-        2001.0db8.85a3.0000.0000.8a2e.0370.7334.backname.io
-        <br /><span class="resolves">resolves to</span>
-        2001:db8:85a3::8a2e:370:7334
+        <p>
+            2a00.1450.401b.810.0.0.0.200e.backname.io
+            <br /><span class="muted">resolves to</span> 2a00:1450:401b:810::200e
+        </p>
+        <small>IPv6 with dots<span class="info" title="Due to limitations of domain names, all eight pieces of an IPv6 must be present, even if they're zero. The double colon can't be used in this notation.">*</span></small>
     </li>
     <li>
-        2a00-1450-401b-810-0-0-0-200e.backname.io
-        <br /><span class="resolves">resolves to</span>
-        2a00:1450:401b:810::200e
+        <p>
+            0--1.backname.io
+            <br /><span class="muted">resolves to</span> ::1
+        </p>
+        <small>IPv6 with hyphens<span class="info" title="Due to limitations of domain names, the first and last piece both need to be spelled out, even if they're zero. The double colon can be used though – it just becomes a double hyphen.">*</span></small>
     </li>
 </ul>
 <footer>
-    This is an <a href="https://github.com/Twixes/backname">open-source</a> public service by
-    <a href="https://matloka.com">Michael Matloka</a>.
+    Backname is an <a href="https://github.com/Twixes/backname">open-source project</a>.<br/>
+    This is a public service by <a href="https://matloka.com">Michael Matloka</a>.
 </footer>

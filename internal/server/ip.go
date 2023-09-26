@@ -1,38 +1,27 @@
 package server
 
 import (
-	"fmt"
 	"net"
-	"strconv"
+	"strings"
 )
 
-func parseIPv4(parts []string) (net.IP, error) {
-	if len(parts) != 4 {
-		return nil, fmt.Errorf("IPv4 addresses must have 4 parts")
+func parseIPv4Subdomain(subdomain string) net.IP {
+	if strings.Contains(subdomain, "-") {
+		subdomain = strings.ReplaceAll(subdomain, "-", ".")
 	}
-	address := make(net.IP, 4)
-	for i, part := range parts {
-		octet, err := strconv.ParseUint(part, 10, 8)
-		if err != nil {
-			return nil, err
-		}
-		address[i] = byte(octet)
+	address := net.ParseIP(subdomain)
+	if address.To4() == nil { // Ensure not IPv6 address
+		return nil
 	}
-	return address, nil
+	return address
 }
 
-func parseIPv6(parts []string) (net.IP, error) {
-	if len(parts) != 8 {
-		return nil, fmt.Errorf("IPv6 addresses must have 8 parts")
+func parseIPv6Subdomain(subdomain string) net.IP {
+	if strings.Contains(subdomain, "-") {
+		subdomain = strings.ReplaceAll(subdomain, "-", ":")
+	} else {
+		subdomain = strings.ReplaceAll(subdomain, ".", ":")
 	}
-	address := make(net.IP, 16)
-	for i, part := range parts {
-		octet, err := strconv.ParseUint(part, 16, 16)
-		if err != nil {
-			return nil, err
-		}
-		address[2*i] = byte(octet >> 8)
-		address[2*i+1] = byte(octet)
-	}
-	return address, nil
+	address := net.ParseIP(subdomain)
+	return address
 }

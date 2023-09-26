@@ -1,6 +1,12 @@
 ---
 ---
 
+:root {
+    --text: #000;
+    --muted: rgba(0, 0, 0, 0.5);
+    --background: #fff;
+}
+
 html,
 body,
 .content {
@@ -14,6 +20,8 @@ body {
     font-family: "DM Sans", "SF Pro Text", "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
     font-weight: 500;
     line-height: 1.4;
+    color: var(--text);
+    background: var(--background);
 }
 h1 {
     font-size: 2rem;
@@ -21,11 +29,21 @@ h1 {
     margin: 0 0 2rem;
     line-height: 1.2;
 }
+small {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--muted);
+    font-weight: 600;
+    font-style: italic;
+}
+p {
+    margin: 0;
+}
 ul {
     padding: 0;
     margin: 0 0 2rem;
     list-style: none;
-    font-size: 1rem;
+    font-size: 1.0625rem;
     white-space: nowrap;
 }
 li {
@@ -35,11 +53,14 @@ a {
     color: inherit;
 }
 footer {
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
 }
 footer,
-.resolves {
-    color: rgba(0, 0, 0, 0.5);
+.muted {
+    color: var(--muted);
+}
+.info {
+    cursor: help;
 }
 @media screen and (min-width: 40rem) {
     body {
@@ -47,6 +68,9 @@ footer,
     }
     ul {
         font-size: 1.25rem;
+    }
+    small {
+        font-size: 0.9375rem;;
     }
     footer {
         font-size: 1rem;
@@ -56,7 +80,7 @@ footer,
     body {
         padding: 6rem 6rem 2rem;
     }
-    br {
+    ul br {
         display: none;
     }
 }
