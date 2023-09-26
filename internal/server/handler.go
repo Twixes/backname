@@ -11,7 +11,8 @@ import (
 
 var (
 	zone                 = strings.ToLower(os.Getenv("ZONE"))
-	siteCname            = strings.TrimPrefix(strings.ToLower(os.Getenv("SITE_CNAME")), ".")
+	websiteIPv4s         []net.IP
+	websiteIPv6s         []net.IP
 	nameserverPublicIPv4 net.IP
 )
 
@@ -22,9 +23,26 @@ func init() {
 	if !strings.HasSuffix(zone, ".") {
 		zone += "."
 	}
-	if siteCname != "" && !strings.HasSuffix(siteCname, ".") {
-		siteCname += "."
+
+	if websiteIPv4sRaw := os.Getenv("WEBSITE_A"); websiteIPv4sRaw != "" {
+		for _, websiteIPv4Raw := range strings.Split(websiteIPv4sRaw, ",") {
+			if websiteIPv4, err := parseIPv4(strings.Split(websiteIPv4Raw, ".")); err == nil {
+				websiteIPv4s = append(websiteIPv4s, websiteIPv4)
+			} else {
+				log.Fatalf("WEBSITE_A environment variable is invalid: %s", err)
+			}
+		}
 	}
+	if websiteIPv6sRaw := os.Getenv("WEBSITE_AAAA"); websiteIPv6sRaw != "" {
+		for _, websiteIPv6Raw := range strings.Split(websiteIPv6sRaw, ",") {
+			if websiteIPv6, err := parseIPv6(strings.Split(websiteIPv6Raw, ".")); err == nil {
+				websiteIPv6s = append(websiteIPv6s, websiteIPv6)
+			} else {
+				log.Fatalf("WEBSITE_AAAA environment variable is invalid: %s", err)
+			}
+		}
+	}
+
 	if nameserverPublicIPv4Raw := os.Getenv("NAMESERVER_PUBLIC_IPV4"); nameserverPublicIPv4Raw != "" {
 		var err error
 		nameserverPublicIPv4, err = parseIPv4(strings.Split(nameserverPublicIPv4Raw, "."))
@@ -39,12 +57,12 @@ func init() {
 type DNSHandler struct{}
 
 // Resolve a question into an answer, an extra record and a response code
-func resolve(question dns.Question) (dns.RR, dns.RR, int) {
+func resolve(question dns.Question) ([]dns.RR, int) {
 	log.Printf("Resolving %s records for %s\n", dns.TypeToString[question.Qtype], question.Name)
 
 	// Make sure that the name from the question lies within the zone
 	if !strings.HasSuffix(strings.ToLower(question.Name), zone) {
-		return nil, nil, dns.RcodeNotZone
+		return nil, dns.RcodeNotZone
 	}
 
 	subdomainsString := strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(question.Name), zone), ".")
@@ -53,52 +71,62 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 		subdomains = strings.Split(subdomainsString, ".")
 	}
 
-	// Verify domain existence
-	var recordA net.IP
-	var recordAAAA net.IP
-	var recordCNAME string
-	var recordNS string = "ns." + zone
-	var recordNSGlueA net.IP = nameserverPublicIPv4 // TODO This may not be needed
-	if len(subdomains) == 0 || (len(subdomains) == 1 && subdomains[0] == "www") {
-		recordCNAME = siteCname
-	} else if len(subdomains) == 1 && subdomains[0] == "ns" {
-		recordA = nameserverPublicIPv4
-	} else if subdomainIPv4, _ := parseIPv4(subdomains); subdomainIPv4 != nil {
-		recordA = subdomainIPv4
-	} else if subdomainIPv6, _ := parseIPv6(subdomains); subdomainIPv6 != nil {
-		recordAAAA = subdomainIPv6
+	// Verify domain existence and determine records
+	var records []dns.RR
+	if len(subdomains) == 0 { // <zone>
+		switch question.Qtype {
+		case dns.TypeA:
+			for _, websiteIPv4 := range websiteIPv4s {
+				records = append(records, &dns.A{
+					A: websiteIPv4,
+				})
+			}
+		case dns.TypeAAAA:
+			for _, websiteIPv6 := range websiteIPv6s {
+				records = append(records, &dns.AAAA{
+					AAAA: websiteIPv6,
+				})
+			}
+		}
+	} else if len(subdomains) == 1 && subdomains[0] == "www" { // www.<zone>
+		switch question.Qtype {
+		case dns.TypeCNAME:
+			records = append(records, &dns.CNAME{
+				Target: zone,
+			})
+		}
+	} else if len(subdomains) == 1 && subdomains[0] == "ns" { // ns.<zone>
+		switch question.Qtype {
+		case dns.TypeA:
+			records = append(records, &dns.A{
+				A: nameserverPublicIPv4,
+			})
+		}
+	} else if subdomainIPv4, _ := parseIPv4(subdomains); subdomainIPv4 != nil { // <ipv4>.<zone>
+		switch question.Qtype {
+		case dns.TypeA:
+			records = append(records, &dns.A{
+				A: subdomainIPv4,
+			})
+		}
+	} else if subdomainIPv6, _ := parseIPv6(subdomains); subdomainIPv6 != nil { // <ipv6>.<zone>
+		switch question.Qtype {
+		case dns.TypeAAAA:
+			records = append(records, &dns.AAAA{
+				AAAA: subdomainIPv6,
+			})
+		}
 	} else {
-		return nil, nil, dns.RcodeNameError
+		return nil, dns.RcodeNameError
 	}
 
-	if question.Qtype == dns.TypeA {
-		if recordA != nil {
-			return &dns.A{
-				A: recordA,
-			}, nil, dns.RcodeSuccess
-		}
-	} else if question.Qtype == dns.TypeAAAA {
-		if recordAAAA != nil {
-			return &dns.AAAA{
-				AAAA: recordAAAA,
-			}, nil, dns.RcodeSuccess
-		}
-	} else if question.Qtype == dns.TypeCNAME {
-		log.Printf("CNAME: %s\n", recordCNAME)
-		if recordCNAME != "" {
-			return &dns.CNAME{
-				Target: siteCname,
-			}, nil, dns.RcodeSuccess
-		}
-	} else if question.Qtype == dns.TypeNS {
-		return &dns.NS{
-				Ns: recordNS,
-			}, &dns.A{ // The glue record
-				A: recordNSGlueA,
-			}, dns.RcodeSuccess
+	if question.Qtype == dns.TypeNS { // Any domain in zone
+		records = append(records, &dns.NS{
+			Ns: "ns." + zone,
+		})
 	}
 
-	return nil, nil, dns.RcodeSuccess
+	return records, dns.RcodeSuccess
 }
 
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -114,8 +142,8 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	question := r.Question[0]
-	answer, extra, rcode := resolve(question)
-	if answer != nil {
+	answers, rcode := resolve(question)
+	for _, answer := range answers {
 		header := answer.Header() // Fill in header boilerplate
 		header.Class = dns.ClassINET
 		header.Name = question.Name
@@ -131,14 +159,6 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			header.Rrtype = dns.TypeNS
 		}
 		msg.Answer = append(msg.Answer, answer)
-	}
-	if extra != nil {
-		header := extra.Header() // Fill in header boilerplate
-		header.Class = dns.ClassINET
-		header.Name = question.Name
-		header.Ttl = 0 // TODO
-		header.Rrtype = dns.TypeA
-		msg.Extra = append(msg.Extra, extra)
 	}
 	msg.SetRcode(r, rcode)
 
