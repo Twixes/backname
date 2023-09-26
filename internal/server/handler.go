@@ -121,7 +121,7 @@ func resolve(question dns.Question) (dns.RR, dns.RR, int) {
 			}, dns.RcodeSuccess
 	}
 
-	return nil, nil, dns.RcodeServerFailure // TODO: Improve this handling, in particular determine subdomain existence early
+	return nil, nil, dns.RcodeSuccess // TODO: Improve this handling, in particular determine subdomain existence early
 }
 
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
