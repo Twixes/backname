@@ -77,7 +77,7 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 		})
 	}
 
-	if len(subdomain) == 0 { // <zone>
+	if len(subdomain) == 0 { // <zone> - this must never be NXDOMAIN
 		switch question.Qtype {
 		case dns.TypeA:
 			for _, websiteIPv4 := range websiteA {
@@ -99,6 +99,12 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 				Target: zone,
 			})
 		case dns.TypeA:
+			if len(websiteA) == 0 && len(websiteAAAA) == 0 {
+				code = dns.RcodeNameError
+				break
+			} else if len(websiteA) == 0 {
+				break
+			}
 			// There is a CNAME for www, so the CNAME is returned, with A records for the canonical name attached
 			records = append(records, &dns.CNAME{
 				Target: zone,
@@ -115,6 +121,12 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		case dns.TypeAAAA:
+			if len(websiteA) == 0 && len(websiteAAAA) == 0 {
+				code = dns.RcodeNameError
+				break
+			} else if len(websiteAAAA) == 0 {
+				break
+			}
 			// There is a CNAME for www, so the CNAME is returned, with AAAA records for the canonical name attached
 			records = append(records, &dns.CNAME{
 				Target: zone,
