@@ -11,7 +11,6 @@ import (
 
 var (
 	zone                 = strings.ToLower(os.Getenv("ZONE"))
-	websiteWWWCNAME      = strings.ToLower(os.Getenv("WEBSITE_WWW_CNAME"))
 	websiteA             []net.IP
 	websiteAAAA          []net.IP
 	nameserverPublicIPv4 net.IP
@@ -23,10 +22,6 @@ func init() {
 	}
 	if !strings.HasSuffix(zone, ".") {
 		zone += "."
-	}
-
-	if websiteWWWCNAME != "" && !strings.HasSuffix(websiteWWWCNAME, ".") {
-		websiteWWWCNAME += "."
 	}
 
 	if websiteIPv4sRaw := os.Getenv("WEBSITE_A"); websiteIPv4sRaw != "" {
@@ -100,9 +95,39 @@ func resolve(question dns.Question) ([]dns.RR, int) {
 	} else if subdomain == "www" { // www.<zone>
 		switch question.Qtype {
 		case dns.TypeCNAME:
-			if websiteWWWCNAME != "" {
-				records = append(records, &dns.CNAME{
-					Target: websiteWWWCNAME,
+			records = append(records, &dns.CNAME{
+				Target: zone,
+			})
+		case dns.TypeA:
+			// There is a CNAME for www, so the CNAME is returned, with A records for the canonical name attached
+			records = append(records, &dns.CNAME{
+				Target: zone,
+				Hdr: dns.RR_Header{
+					Rrtype: dns.TypeCNAME,
+				},
+			})
+			for _, websiteIPv6 := range websiteA {
+				records = append(records, &dns.A{
+					A: websiteIPv6,
+					Hdr: dns.RR_Header{
+						Name: "www." + zone,
+					},
+				})
+			}
+		case dns.TypeAAAA:
+			// There is a CNAME for www, so the CNAME is returned, with AAAA records for the canonical name attached
+			records = append(records, &dns.CNAME{
+				Target: zone,
+				Hdr: dns.RR_Header{
+					Rrtype: dns.TypeCNAME,
+				},
+			})
+			for _, websiteIPv4 := range websiteAAAA {
+				records = append(records, &dns.AAAA{
+					AAAA: websiteIPv4,
+					Hdr: dns.RR_Header{
+						Name: "www." + zone,
+					},
 				})
 			}
 		}
@@ -150,19 +175,23 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	answers, rcode := resolve(question)
 	for _, answer := range answers {
 		header := answer.Header() // Fill in header boilerplate
-		header.Class = dns.ClassINET
-		header.Name = question.Name
-		header.Ttl = 3600 // TODO: Increase when tests are comphrensive enough
-		switch question.Qtype {
-		case dns.TypeA:
-			header.Rrtype = dns.TypeA
-		case dns.TypeAAAA:
-			header.Rrtype = dns.TypeAAAA
-		case dns.TypeCNAME:
-			header.Rrtype = dns.TypeCNAME
-		case dns.TypeNS:
-			header.Rrtype = dns.TypeNS
+		if header.Name == "" {
+			header.Name = question.Name // The RR name can be different than the question's if there was a CNAME
 		}
+		if header.Rrtype == 0 { // The RR type can be different than the question's if there was a CNAME
+			switch question.Qtype {
+			case dns.TypeA:
+				header.Rrtype = dns.TypeA
+			case dns.TypeAAAA:
+				header.Rrtype = dns.TypeAAAA
+			case dns.TypeCNAME:
+				header.Rrtype = dns.TypeCNAME
+			case dns.TypeNS:
+				header.Rrtype = dns.TypeNS
+			}
+		}
+		header.Class = dns.ClassINET
+		header.Ttl = 3600 // TODO: Increase when tests are comphrensive enough
 		msg.Answer = append(msg.Answer, answer)
 	}
 	msg.SetRcode(r, rcode)
