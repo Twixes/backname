@@ -1,11 +1,11 @@
-name: Run tests
+name: Tests
 
 on:
   pull_request:
 
 jobs:
   test:
-    name: '`go test`'
+    name: go test
     runs-on: ubuntu-latest
 
     steps:
