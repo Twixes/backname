@@ -9,6 +9,7 @@ import (
 
 func main() {
 	handler := new(server.DNSHandler)
+	handler.InitFromEnv()
 	server := &dns.Server{
 		Addr:      ":53",
 		Net:       "udp",
