@@ -163,18 +163,18 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		}
-	} else if subdomainIPv4 := parseIPv4Subdomain(subdomain); subdomainIPv4 != nil { // <ipv4>.<zone>
-		switch question.Qtype {
-		case dns.TypeA:
-			records = append(records, &dns.A{
-				A: subdomainIPv4,
-			})
-		}
 	} else if subdomainIPv6 := parseIPv6Subdomain(subdomain); subdomainIPv6 != nil { // <ipv6>.<zone>
 		switch question.Qtype {
 		case dns.TypeAAAA:
 			records = append(records, &dns.AAAA{
 				AAAA: subdomainIPv6,
+			})
+		}
+	} else if subdomainIPv4 := parseIPv4Subdomain(subdomain); subdomainIPv4 != nil { // <ipv4>.<zone>
+		switch question.Qtype {
+		case dns.TypeA:
+			records = append(records, &dns.A{
+				A: subdomainIPv4,
 			})
 		}
 	} else {
