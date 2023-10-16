@@ -253,6 +253,43 @@ func TestResolvesCorrectIPv4SubdomainWithDots(t *testing.T) {
 	assert.Equal(t, []dns.RR(nil), answers_aaaa)
 }
 
+func TestResolvesCorrectIPv4SubdomainWithDotsNamed(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA},
+	}
+
+	// foo.127.0.0.1.example.com
+
+	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
+		Name:   "foo.127.0.0.1.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_a)
+	assert.Equal(t, []dns.RR{
+		&dns.A{
+			Hdr: dns.RR_Header{
+				Name:   "foo.127.0.0.1.example.com.",
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			A: net.ParseIP("127.0.0.1"),
+		},
+	}, answers_a)
+
+	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
+		Name:   "foo.127.0.0.1.example.com.",
+		Qtype:  dns.TypeAAAA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_aaaa)
+	assert.Equal(t, []dns.RR(nil), answers_aaaa)
+}
+
 func TestResolvesCorrectIPv4SubdomainWithDashes(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
@@ -290,16 +327,53 @@ func TestResolvesCorrectIPv4SubdomainWithDashes(t *testing.T) {
 	assert.Equal(t, []dns.RR(nil), answers_aaaa)
 }
 
+func TestResolvesCorrectIPv4SubdomainWithDashesNamed(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA},
+	}
+
+	// foo.123-0-0-4.example.com
+
+	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
+		Name:   "foo.200-0-0-4.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_a)
+	assert.Equal(t, []dns.RR{
+		&dns.A{
+			Hdr: dns.RR_Header{
+				Name:   "foo.200-0-0-4.example.com.",
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			A: net.ParseIP("200.0.0.4"),
+		},
+	}, answers_a)
+
+	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
+		Name:   "foo.200-0-0-4.example.com.",
+		Qtype:  dns.TypeAAAA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_aaaa)
+	assert.Equal(t, []dns.RR(nil), answers_aaaa)
+}
+
 func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
 		nsA:  []net.IP{testNsA},
 	}
 
-	// 2001:db8::1.example.com
+	// 2001.db8.0.0.0.0.0.1.example.com
 
 	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
-		Name:   "2001:db8::1.example.com.",
+		Name:   "2001.db8.0.0.0.0.0.1.example.com.",
 		Qtype:  dns.TypeAAAA,
 		Qclass: dns.ClassINET,
 	})
@@ -308,7 +382,7 @@ func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 	assert.Equal(t, []dns.RR{
 		&dns.AAAA{
 			Hdr: dns.RR_Header{
-				Name:   "2001:db8::1.example.com.",
+				Name:   "2001.db8.0.0.0.0.0.1.example.com.",
 				Rrtype: dns.TypeAAAA,
 				Class:  dns.ClassINET,
 				Ttl:    ttl,
@@ -318,7 +392,44 @@ func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 	}, answers_aaaa)
 
 	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
-		Name:   "2001:db8::1.example.com.",
+		Name:   "2001.db8.0.0.0.0.0.1.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_a)
+	assert.Equal(t, []dns.RR(nil), answers_a)
+}
+
+func TestResolvesCorrectIPv6SubdomainWithDotsNamed(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA},
+	}
+
+	// foo.2001.db8.0.0.0.0.0.1.example.com
+
+	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
+		Name:   "foo.2001.db8.0.0.0.0.0.1.example.com.",
+		Qtype:  dns.TypeAAAA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_aaaa)
+	assert.Equal(t, []dns.RR{
+		&dns.AAAA{
+			Hdr: dns.RR_Header{
+				Name:   "foo.2001.db8.0.0.0.0.0.1.example.com.",
+				Rrtype: dns.TypeAAAA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			AAAA: net.ParseIP("2001:db8::1"),
+		},
+	}, answers_aaaa)
+
+	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
+		Name:   "foo.2001.db8.0.0.0.0.0.1.example.com.",
 		Qtype:  dns.TypeA,
 		Qclass: dns.ClassINET,
 	})
@@ -356,6 +467,43 @@ func TestResolvesCorrectIPv6SubdomainWithDashes(t *testing.T) {
 
 	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
 		Name:   "2001-db8--1.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_a)
+	assert.Equal(t, []dns.RR(nil), answers_a)
+}
+
+func TestResolvesCorrectIPv6SubdomainWithDashesNamed(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA},
+	}
+
+	// foo.2001-db8--1.example.com
+
+	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
+		Name:   "foo.2001-db8--1.example.com.",
+		Qtype:  dns.TypeAAAA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_aaaa)
+	assert.Equal(t, []dns.RR{
+		&dns.AAAA{
+			Hdr: dns.RR_Header{
+				Name:   "foo.2001-db8--1.example.com.",
+				Rrtype: dns.TypeAAAA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			AAAA: net.ParseIP("2001:db8::1"),
+		},
+	}, answers_aaaa)
+
+	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
+		Name:   "foo.2001-db8--1.example.com.",
 		Qtype:  dns.TypeA,
 		Qclass: dns.ClassINET,
 	})
