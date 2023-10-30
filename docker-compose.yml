@@ -10,6 +10,8 @@ services:
       - ZONE=example.com
       # The public IPv4 address of the server hosting Backname or two comma-separated addresses
       - NAMESERVER_A=127.0.0.1
+      # Optional: The public IPv6 address of the server hosting Backname or two comma-separated addresses
+      - NAMESERVER_AAAA
       # Optional: Serve a website at the root of the zone + the www subdomain by specifying their A and/or AAAA records
       - WEBSITE_A
       - WEBSITE_AAAA
