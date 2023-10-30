@@ -45,16 +45,20 @@ func (h *DNSHandler) InitFromEnv() {
 			}
 		}
 	}
-	if nameserverPublicIPv4sRaw := os.Getenv("NAMESERVER_PUBLIC_IPV4"); nameserverPublicIPv4sRaw != "" {
-		for _, nameserverPublicIPv4Raw := range strings.Split(nameserverPublicIPv4sRaw, ",") {
-			if nameserverPublicIPv4 := net.ParseIP(nameserverPublicIPv4Raw); nameserverPublicIPv4 != nil {
-				h.nsA = append(h.nsA, nameserverPublicIPv4)
+	if nameserverIPv4sRaw := os.Getenv("NAMESERVER_A"); nameserverIPv4sRaw != "" {
+		nameserverIPv4sSplit := strings.Split(nameserverIPv4sRaw, ",")
+		if len(nameserverIPv4sSplit) > 2 {
+			log.Fatal("NAMESERVER_A environment variable must contain at most two addresses")
+		}
+		for _, nameserverIPv4Raw := range strings.Split(nameserverIPv4sRaw, ",") {
+			if nameserverIPv4 := net.ParseIP(nameserverIPv4Raw); nameserverIPv4 != nil {
+				h.nsA = append(h.nsA, nameserverIPv4)
 			} else {
-				log.Fatalf("NAMESERVER_PUBLIC_IPV4 environment variable is invalid: %s", nameserverPublicIPv4Raw)
+				log.Fatalf("NAMESERVER_A environment variable is invalid: %s", nameserverIPv4)
 			}
 		}
 	} else {
-		log.Fatal("NAMESERVER_PUBLIC_IPV4 environment variable must be set")
+		log.Fatal("NAMESERVER_A environment variable must be set")
 	}
 }
 
@@ -78,10 +82,15 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 	var records []dns.RR
 	code := dns.RcodeSuccess
 
-	if question.Qtype == dns.TypeNS { // NS records are available everywhere in the zone, even for non-existens domains
+	if question.Qtype == dns.TypeNS { // NS records are available everywhere in the zone, even for non-existent domains
 		records = append(records, &dns.NS{
-			Ns: "ns." + h.zone,
+			Ns: "alpha." + h.zone,
 		})
+		if len(h.nsA) > 1 {
+			records = append(records, &dns.NS{
+				Ns: "omega." + h.zone,
+			})
+		}
 	}
 
 	if len(subdomain) == 0 { // <zone> - this must never be NXDOMAIN
@@ -154,13 +163,22 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		}
-	} else if subdomain == "ns" { // ns.<zone>
+	} else if subdomain == "alpha" { // alpha.<zone> - first nameserver
 		switch question.Qtype {
 		case dns.TypeA:
-			for _, nameserverPublicIPv4 := range h.nsA {
+			records = append(records, &dns.A{
+				A: h.nsA[0],
+			})
+		}
+	} else if subdomain == "omega" { // omega.<zone> - second nameserver
+		switch question.Qtype {
+		case dns.TypeA:
+			if len(h.nsA) > 1 {
 				records = append(records, &dns.A{
-					A: nameserverPublicIPv4,
+					A: h.nsA[1],
 				})
+			} else {
+				code = dns.RcodeNameError
 			}
 		}
 	} else if subdomainIPv6 := parseIPv6Subdomain(subdomain); subdomainIPv6 != nil { // <ipv6>.<zone>
