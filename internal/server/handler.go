@@ -16,6 +16,7 @@ type DNSHandler struct {
 	websiteA    []net.IP
 	websiteAAAA []net.IP
 	nsA         []net.IP
+	nsAAAA      []net.IP
 }
 
 func (h *DNSHandler) InitFromEnv() {
@@ -29,7 +30,7 @@ func (h *DNSHandler) InitFromEnv() {
 	}
 	if websiteIPv4sRaw := os.Getenv("WEBSITE_A"); websiteIPv4sRaw != "" {
 		for _, websiteIPv4Raw := range strings.Split(websiteIPv4sRaw, ",") {
-			if websiteIPv4 := net.ParseIP(websiteIPv4Raw); websiteIPv4 != nil {
+			if websiteIPv4 := net.ParseIP(websiteIPv4Raw); websiteIPv4.To4() != nil {
 				h.websiteA = append(h.websiteA, websiteIPv4)
 			} else {
 				log.Fatalf("WEBSITE_A environment variable is invalid: %s", websiteIPv4Raw)
@@ -51,7 +52,7 @@ func (h *DNSHandler) InitFromEnv() {
 			log.Fatal("NAMESERVER_A environment variable must contain at most two addresses")
 		}
 		for _, nameserverIPv4Raw := range strings.Split(nameserverIPv4sRaw, ",") {
-			if nameserverIPv4 := net.ParseIP(nameserverIPv4Raw); nameserverIPv4 != nil {
+			if nameserverIPv4 := net.ParseIP(nameserverIPv4Raw); nameserverIPv4.To4() != nil {
 				h.nsA = append(h.nsA, nameserverIPv4)
 			} else {
 				log.Fatalf("NAMESERVER_A environment variable is invalid: %s", nameserverIPv4)
@@ -59,6 +60,21 @@ func (h *DNSHandler) InitFromEnv() {
 		}
 	} else {
 		log.Fatal("NAMESERVER_A environment variable must be set")
+	}
+	if nameserverIPv6sRaw := os.Getenv("NAMESERVER_AAAA"); nameserverIPv6sRaw != "" {
+		nameserverIPv6sSplit := strings.Split(nameserverIPv6sRaw, ",")
+		if len(nameserverIPv6sSplit) > 2 {
+			log.Fatal("NAMESERVER_AAAA environment variable must contain at most two addresses")
+		} else if len(nameserverIPv6sSplit) > 0 && len(nameserverIPv6sSplit) != len(h.nsA) {
+			log.Fatal("If the NAMESERVER_AAAA environment variable is set, it must contain the same number of addresses as NAMESERVER_A")
+		}
+		for _, nameserverIPv6Raw := range strings.Split(nameserverIPv6sRaw, ",") {
+			if nameserverIPv6 := net.ParseIP(nameserverIPv6Raw); nameserverIPv6 != nil {
+				h.nsA = append(h.nsA, nameserverIPv6)
+			} else {
+				log.Fatalf("NAMESERVER_AAAA environment variable is invalid: %s", nameserverIPv6)
+			}
+		}
 	}
 }
 
@@ -169,6 +185,12 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 			records = append(records, &dns.A{
 				A: h.nsA[0],
 			})
+		case dns.TypeAAAA:
+			if len(h.nsAAAA) > 0 {
+				records = append(records, &dns.AAAA{
+					AAAA: h.nsAAAA[0],
+				})
+			}
 		}
 	} else if subdomain == "omega" { // omega.<zone> - second nameserver
 		switch question.Qtype {
@@ -176,6 +198,14 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 			if len(h.nsA) > 1 {
 				records = append(records, &dns.A{
 					A: h.nsA[1],
+				})
+			} else {
+				code = dns.RcodeNameError
+			}
+		case dns.TypeAAAA:
+			if len(h.nsAAAA) > 1 {
+				records = append(records, &dns.AAAA{
+					AAAA: h.nsAAAA[1],
 				})
 			} else {
 				code = dns.RcodeNameError
