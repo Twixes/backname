@@ -8,55 +8,48 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testNsA = net.ParseIP("127.0.0.1")
+var testNsA1 = net.ParseIP("127.0.0.1")
+var testNsA12 = net.ParseIP("127.0.0.2")
 var websiteA = net.ParseIP("192.168.0.1")
 var websiteAAAA = net.ParseIP("2001:db8::1")
 
-func TestResolvesForNameservers(t *testing.T) {
+func TestResolvesForOneNameserver(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
-	// ns.example.com
+	// alpha.example.com
 
-	answers_ns, rcode_ns := handler.ResolveRRs(dns.Question{
-		Name:   "ns.example.com.",
-		Qtype:  dns.TypeNS,
-		Qclass: dns.ClassINET,
-	})
-
-	assert.Equal(t, dns.RcodeSuccess, rcode_ns)
-	assert.Equal(t, []dns.RR{
-		&dns.NS{
-			Hdr: dns.RR_Header{
-				Name:   "ns.example.com.",
-				Rrtype: dns.TypeNS,
-				Class:  dns.ClassINET,
-				Ttl:    ttl,
-			},
-			Ns: "ns.example.com.",
-		},
-	}, answers_ns)
-
-	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
-		Name:   "ns.example.com.",
+	answers_alpha_a, rcode_alpha_a := handler.ResolveRRs(dns.Question{
+		Name:   "alpha.example.com.",
 		Qtype:  dns.TypeA,
 		Qclass: dns.ClassINET,
 	})
 
-	assert.Equal(t, dns.RcodeSuccess, rcode_a)
+	assert.Equal(t, dns.RcodeSuccess, rcode_alpha_a)
 	assert.Equal(t, []dns.RR{
 		&dns.A{
 			Hdr: dns.RR_Header{
-				Name:   "ns.example.com.",
+				Name:   "alpha.example.com.",
 				Rrtype: dns.TypeA,
 				Class:  dns.ClassINET,
 				Ttl:    ttl,
 			},
-			A: testNsA,
+			A: testNsA1,
 		},
-	}, answers_a)
+	}, answers_alpha_a)
+
+	// omega.example.com - should not exist here
+
+	answers_omega_a, rcode_omega_a := handler.ResolveRRs(dns.Question{
+		Name:   "omega.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeNameError, rcode_omega_a)
+	assert.Equal(t, []dns.RR(nil), answers_omega_a)
 
 	// example.com
 
@@ -75,7 +68,85 @@ func TestResolvesForNameservers(t *testing.T) {
 				Class:  dns.ClassINET,
 				Ttl:    ttl,
 			},
-			Ns: "ns.example.com.",
+			Ns: "alpha.example.com.",
+		},
+	}, answers_root_ns)
+}
+
+func TestResolvesForTwoNameservers(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA1, testNsA12},
+	}
+
+	// alpha.example.com
+
+	answers_alpha_a, rcode_alpha_a := handler.ResolveRRs(dns.Question{
+		Name:   "alpha.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_alpha_a)
+	assert.Equal(t, []dns.RR{
+		&dns.A{
+			Hdr: dns.RR_Header{
+				Name:   "alpha.example.com.",
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			A: testNsA1,
+		},
+	}, answers_alpha_a)
+
+	// omega.example.com
+
+	answers_omega_a, rcode_omega_a := handler.ResolveRRs(dns.Question{
+		Name:   "omega.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_omega_a)
+	assert.Equal(t, []dns.RR{
+		&dns.A{
+			Hdr: dns.RR_Header{
+				Name:   "omega.example.com.",
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			A: testNsA12,
+		}}, answers_omega_a)
+
+	// example.com
+
+	answers_root_ns, rcode_root_ns := handler.ResolveRRs(dns.Question{
+		Name:   "example.com.",
+		Qtype:  dns.TypeNS,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_root_ns)
+	assert.Equal(t, []dns.RR{
+		&dns.NS{
+			Hdr: dns.RR_Header{
+				Name:   "example.com.",
+				Rrtype: dns.TypeNS,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			Ns: "alpha.example.com.",
+		},
+		&dns.NS{
+			Hdr: dns.RR_Header{
+				Name:   "example.com.",
+				Rrtype: dns.TypeNS,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			Ns: "omega.example.com.",
 		},
 	}, answers_root_ns)
 
@@ -84,7 +155,7 @@ func TestResolvesForNameservers(t *testing.T) {
 func TestDoesNotResolveForWebsiteIfUnconfigured(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// example.com
@@ -131,7 +202,7 @@ func TestDoesNotResolveForWebsiteIfUnconfigured(t *testing.T) {
 func TestResolvesForWebsiteIfConfigured(t *testing.T) {
 	handler := DNSHandler{
 		zone:        "example.com.",
-		nsA:         []net.IP{testNsA},
+		nsA:         []net.IP{testNsA1},
 		websiteA:    []net.IP{websiteA},
 		websiteAAAA: []net.IP{websiteAAAA},
 	}
@@ -219,7 +290,7 @@ func TestResolvesForWebsiteIfConfigured(t *testing.T) {
 func TestResolvesCorrectIPv4SubdomainWithDots(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// 127.0.0.1.example.com
@@ -256,7 +327,7 @@ func TestResolvesCorrectIPv4SubdomainWithDots(t *testing.T) {
 func TestResolvesCorrectIPv4SubdomainWithDotsNamed(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// foo.127.0.0.1.example.com
@@ -293,7 +364,7 @@ func TestResolvesCorrectIPv4SubdomainWithDotsNamed(t *testing.T) {
 func TestResolvesCorrectIPv4SubdomainWithDashes(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// 123-0-0-4.example.com
@@ -330,7 +401,7 @@ func TestResolvesCorrectIPv4SubdomainWithDashes(t *testing.T) {
 func TestResolvesCorrectIPv4SubdomainWithDashesNamed(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// foo.123-0-0-4.example.com
@@ -367,7 +438,7 @@ func TestResolvesCorrectIPv4SubdomainWithDashesNamed(t *testing.T) {
 func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// 2001.db8.0.0.0.0.0.1.example.com
@@ -404,7 +475,7 @@ func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 func TestResolvesCorrectIPv6SubdomainWithDotsNamed(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// foo.2001.db8.0.0.0.0.0.1.example.com
@@ -441,7 +512,7 @@ func TestResolvesCorrectIPv6SubdomainWithDotsNamed(t *testing.T) {
 func TestResolvesCorrectIPv6SubdomainWithDashes(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// 2001-db8--1.example.com
@@ -478,7 +549,7 @@ func TestResolvesCorrectIPv6SubdomainWithDashes(t *testing.T) {
 func TestResolvesCorrectIPv6SubdomainWithDashesNamed(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
-		nsA:  []net.IP{testNsA},
+		nsA:  []net.IP{testNsA1},
 	}
 
 	// foo.2001-db8--1.example.com
