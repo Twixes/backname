@@ -179,13 +179,6 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 				})
 			}
 		}
-	} else if subdomain == "ns" { // ns.<zone> - backwards compatibility
-		switch question.Qtype {
-		case dns.TypeA:
-			records = append(records, &dns.A{
-				A: h.nsA[0],
-			})
-		}
 	} else if subdomain == "alpha" { // alpha.<zone> - first nameserver
 		switch question.Qtype {
 		case dns.TypeA:
