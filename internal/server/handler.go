@@ -70,7 +70,7 @@ func (h *DNSHandler) InitFromEnv() {
 		}
 		for _, nameserverIPv6Raw := range strings.Split(nameserverIPv6sRaw, ",") {
 			if nameserverIPv6 := net.ParseIP(nameserverIPv6Raw); nameserverIPv6 != nil {
-				h.nsA = append(h.nsA, nameserverIPv6)
+				h.nsAAAA = append(h.nsAAAA, nameserverIPv6)
 			} else {
 				log.Fatalf("NAMESERVER_AAAA environment variable is invalid: %s", nameserverIPv6)
 			}
