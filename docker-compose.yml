@@ -7,9 +7,9 @@ services:
       - "53:53/udp"
     environment:
       # The domain name under which Backname is running (example: backname.io)
-      - ZONE=example.com
+      - ZONE
       # The public IPv4 address of the server hosting Backname or two comma-separated addresses
-      - NAMESERVER_A=127.0.0.1
+      - NAMESERVER_A
       # Optional: The public IPv6 address of the server hosting Backname or two comma-separated addresses
       - NAMESERVER_AAAA
       # Optional: Serve a website at the root of the zone + the www subdomain by specifying their A and/or AAAA records
