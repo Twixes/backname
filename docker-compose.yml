@@ -15,4 +15,7 @@ services:
       # Optional: Serve a website at the root of the zone + the www subdomain by specifying their A and/or AAAA records
       - WEBSITE_A
       - WEBSITE_AAAA
+      # Optional: TXT record values server at the root of the zone, comma-separated
       - ROOT_TXT
+      # Optional: Blocked IP addresses, comma-separated
+      - BLOCKLIST

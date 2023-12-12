@@ -18,6 +18,7 @@ type DNSHandler struct {
 	nsA         []net.IP
 	nsAAAA      []net.IP
 	rootTXT     []string
+	blocklist   []net.IP
 }
 
 func (h *DNSHandler) InitFromEnv() {
@@ -52,7 +53,7 @@ func (h *DNSHandler) InitFromEnv() {
 		if len(nameserverIPv4sSplit) > 2 {
 			log.Fatal("NAMESERVER_A environment variable must contain at most two addresses")
 		}
-		for _, nameserverIPv4Raw := range strings.Split(nameserverIPv4sRaw, ",") {
+		for _, nameserverIPv4Raw := range nameserverIPv4sSplit {
 			if nameserverIPv4 := net.ParseIP(nameserverIPv4Raw); nameserverIPv4.To4() != nil {
 				h.nsA = append(h.nsA, nameserverIPv4)
 			} else {
@@ -69,7 +70,7 @@ func (h *DNSHandler) InitFromEnv() {
 		} else if len(nameserverIPv6sSplit) > 0 && len(nameserverIPv6sSplit) != len(h.nsA) {
 			log.Fatal("If the NAMESERVER_AAAA environment variable is set, it must contain the same number of addresses as NAMESERVER_A")
 		}
-		for _, nameserverIPv6Raw := range strings.Split(nameserverIPv6sRaw, ",") {
+		for _, nameserverIPv6Raw := range nameserverIPv6sSplit {
 			if nameserverIPv6 := net.ParseIP(nameserverIPv6Raw); nameserverIPv6 != nil {
 				h.nsAAAA = append(h.nsAAAA, nameserverIPv6)
 			} else {
@@ -79,6 +80,16 @@ func (h *DNSHandler) InitFromEnv() {
 	}
 	if rootTXTsRaw := os.Getenv("ROOT_TXT"); rootTXTsRaw != "" {
 		h.rootTXT = strings.Split(rootTXTsRaw, ",")
+	}
+	if blocklistIPsRaw := os.Getenv("BLOCKLIST"); blocklistIPsRaw != "" {
+		blocklistIPsSplit := strings.Split(blocklistIPsRaw, ",")
+		for _, blocklistIPRaw := range blocklistIPsSplit {
+			if blocklistIP := net.ParseIP(blocklistIPRaw); blocklistIP != nil {
+				h.blocklist = append(h.blocklist, blocklistIP)
+			} else {
+				log.Fatalf("BLOCKLIST environment variable is invalid: %s", blocklistIPRaw)
+			}
+		}
 	}
 }
 
@@ -221,14 +232,14 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 				code = dns.RcodeNameError
 			}
 		}
-	} else if subdomainIPv6 := parseIPv6Subdomain(subdomain); subdomainIPv6 != nil { // <ipv6>.<zone>
+	} else if subdomainIPv6 := parseIPv6Subdomain(subdomain); subdomainIPv6 != nil && !h.isBlocked(subdomainIPv6) { // <ipv6>.<zone>
 		switch question.Qtype {
 		case dns.TypeAAAA:
 			records = append(records, &dns.AAAA{
 				AAAA: subdomainIPv6,
 			})
 		}
-	} else if subdomainIPv4 := parseIPv4Subdomain(subdomain); subdomainIPv4 != nil { // <ipv4>.<zone>
+	} else if subdomainIPv4 := parseIPv4Subdomain(subdomain); subdomainIPv4 != nil && !h.isBlocked(subdomainIPv4) { // <ipv4>.<zone>
 		switch question.Qtype {
 		case dns.TypeA:
 			records = append(records, &dns.A{
@@ -266,6 +277,15 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 	return records, code
 }
 
+func (h *DNSHandler) isBlocked(ip net.IP) bool {
+	for _, blocklistIP := range h.blocklist {
+		if blocklistIP.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := new(dns.Msg)
 	msg.SetReply(r)
@@ -280,9 +300,7 @@ func (h *DNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	question := r.Question[0]
 	answers, rcode := h.ResolveRRs(question)
-	for _, answer := range answers {
-		msg.Answer = append(msg.Answer, answer)
-	}
+	msg.Answer = append(msg.Answer, answers...)
 	msg.SetRcode(r, rcode)
 
 	w.WriteMsg(msg)

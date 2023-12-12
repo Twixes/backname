@@ -435,6 +435,35 @@ func TestResolvesCorrectIPv4SubdomainWithDashesNamed(t *testing.T) {
 	assert.Equal(t, []dns.RR(nil), answers_aaaa)
 }
 
+func TestDoesNotResolveBlockedIPv4Subdomain(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA1},
+		blocklist: []net.IP{
+			net.ParseIP("200.0.0.4")},
+	}
+
+	// foo.123-0-0-4.example.com
+
+	answers_a, rcode_a := handler.ResolveRRs(dns.Question{
+		Name:   "foo.200-0-0-4.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeNameError, rcode_a)
+	assert.Equal(t, []dns.RR(nil), answers_a)
+
+	answers_aaaa, rcode_aaaa := handler.ResolveRRs(dns.Question{
+		Name:   "foo.200-0-0-4.example.com.",
+		Qtype:  dns.TypeAAAA,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeNameError, rcode_aaaa)
+	assert.Equal(t, []dns.RR(nil), answers_aaaa)
+}
+
 func TestResolvesCorrectIPv6SubdomainWithDots(t *testing.T) {
 	handler := DNSHandler{
 		zone: "example.com.",
