@@ -582,3 +582,50 @@ func TestResolvesCorrectIPv6SubdomainWithDashesNamed(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, rcode_a)
 	assert.Equal(t, []dns.RR(nil), answers_a)
 }
+
+func TestResolvesTXTWithoutConfiguration(t *testing.T) {
+	handler := DNSHandler{
+		zone: "example.com.",
+		nsA:  []net.IP{testNsA1},
+	}
+
+	// example.com
+
+	answers_txt, rcode_txt := handler.ResolveRRs(dns.Question{
+		Name:   "example.com.",
+		Qtype:  dns.TypeTXT,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_txt)
+	assert.Equal(t, []dns.RR(nil), answers_txt)
+}
+
+func TestResolvesTXTWithConfiguration(t *testing.T) {
+	handler := DNSHandler{
+		zone:    "example.com.",
+		nsA:     []net.IP{testNsA1},
+		rootTXT: []string{"foo", "bar"},
+	}
+
+	// example.com
+
+	answers_txt, rcode_txt := handler.ResolveRRs(dns.Question{
+		Name:   "example.com.",
+		Qtype:  dns.TypeTXT,
+		Qclass: dns.ClassINET,
+	})
+
+	assert.Equal(t, dns.RcodeSuccess, rcode_txt)
+	assert.Equal(t, []dns.RR{
+		&dns.TXT{
+			Hdr: dns.RR_Header{
+				Name:   "example.com.",
+				Rrtype: dns.TypeTXT,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			Txt: []string{"foo", "bar"},
+		},
+	}, answers_txt)
+}

@@ -17,6 +17,7 @@ type DNSHandler struct {
 	websiteAAAA []net.IP
 	nsA         []net.IP
 	nsAAAA      []net.IP
+	rootTXT     []string
 }
 
 func (h *DNSHandler) InitFromEnv() {
@@ -76,6 +77,9 @@ func (h *DNSHandler) InitFromEnv() {
 			}
 		}
 	}
+	if rootTXTsRaw := os.Getenv("ROOT_TXT"); rootTXTsRaw != "" {
+		h.rootTXT = strings.Split(rootTXTsRaw, ",")
+	}
 }
 
 // Resolve a question into an answer, an extra record and a response code
@@ -121,6 +125,12 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 			for _, websiteIPv6 := range h.websiteAAAA {
 				records = append(records, &dns.AAAA{
 					AAAA: websiteIPv6,
+				})
+			}
+		case dns.TypeTXT:
+			if len(h.rootTXT) > 0 {
+				records = append(records, &dns.TXT{
+					Txt: h.rootTXT,
 				})
 			}
 		}
@@ -245,6 +255,8 @@ func (h *DNSHandler) ResolveRRs(question dns.Question) ([]dns.RR, int) {
 				header.Rrtype = dns.TypeCNAME
 			case dns.TypeNS:
 				header.Rrtype = dns.TypeNS
+			case dns.TypeTXT:
+				header.Rrtype = dns.TypeTXT
 			}
 		}
 		header.Class = dns.ClassINET
