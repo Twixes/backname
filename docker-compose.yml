@@ -6,16 +6,16 @@ services:
     ports:
       - "53:53/udp"
     environment:
-      # The domain name under which Backname is running (example: backname.io)
+      # The domain name under which Backname will be running (real-world example: backname.io)
       - ZONE
-      # The public IPv4 address of the server hosting Backname or two comma-separated addresses
+      # The public IPv4 address of this server hosting Backname (in a dual-server setup, two comma-separated addresses)
       - NAMESERVER_A
-      # Optional: The public IPv6 address of the server hosting Backname or two comma-separated addresses
+      # Optional: The public IPv6 address of this server hosting Backname, if supporting IPv6 (in a dual-server setup, two comma-separated addresses)
       - NAMESERVER_AAAA
-      # Optional: Serve a website at the root of the zone + the www subdomain by specifying their A and/or AAAA records
+      # Optional: Website A and/or AAAA records that will be served for your-backname-domain.com + www.your-backname-domain.com (comma-separated)
       - WEBSITE_A
       - WEBSITE_AAAA
-      # Optional: TXT record values server at the root of the zone, comma-separated
+      # Optional: TXT record values server at the root of the zone (comma-separated), if needed for e.g. domain verification
       - ROOT_TXT
-      # Optional: Blocked IP addresses, comma-separated
+      # Optional: IP addresses blocked from receiving a backname (comma-separated), if seeing problematic usage
       - BLOCKLIST

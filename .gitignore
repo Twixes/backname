@@ -32,3 +32,6 @@ docs/vendor/
 
 # Config
 .env
+
+# Code editors
+.vscode/
