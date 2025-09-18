@@ -10,33 +10,58 @@ image:
 <ul>
     <li>
         <p>
-            142.250.147.138.backname.io
+            <span class="prefix" data-prefix="mysite"></span>142.250.147.138.backname.io
             <br /><span class="muted">resolves to</span> 142.250.147.138
         </p>
         <small>IPv4 with dots</small>
     </li>
     <li>
         <p>
-            127-0-0-1.backname.io
+            <span class="prefix" data-prefix="foobar.dev"></span>127-0-0-1.backname.io
             <br /><span class="muted">resolves to</span> 127.0.0.1
         </p>
         <small>IPv4 with dashes</small>
     </li>
     <li>
         <p>
-            2a00.1450.401b.810.0.0.0.200e.backname.io
+            <span class="prefix" data-prefix="xyz"></span>2a00.1450.401b.810.0.0.0.200e.backname.io
             <br /><span class="muted">resolves to</span> 2a00:1450:401b:810::200e
         </p>
         <small>IPv6 with dots<span class="info" title="Due to limitations of domain names, all eight pieces of an IPv6 must be present, even if they're zero. The double colon can't be used in this notation.">*</span></small>
     </li>
     <li>
         <p>
-            0--1.backname.io
+            <span class="prefix" data-prefix="alpha-omega"></span>0--1.backname.io
             <br /><span class="muted">resolves to</span> ::1
         </p>
         <small>IPv6 with dashes<span class="info" title="Due to limitations of domain names, the first and last piece both need to be spelled out, even if they're zero. The double colon can be used though – it just becomes a double dash.">*</span></small>
     </li>
 </ul>
+<div class="controls">
+    <label class="toggle" title="A backname may have an arbitrary subdomain – giving it a unique identity, with the same functionality.">
+        <input type="checkbox" id="identified-toggle" />
+        <span class="slider"></span>
+        <span class="label">Identified backnames
+            <noscript> ❗ Enable JavaScript to preview identified prefixes</noscript>
+        </span>
+    </label>
+</div>
+<script>
+    ;(function () {
+        var toggle = document.getElementById("identified-toggle")
+        if (!toggle) return
+        var nodes = Array.prototype.slice.call(document.querySelectorAll(".prefix"))
+        function apply() {
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i]
+                var label = node.getAttribute("data-prefix") || ""
+                node.textContent = toggle.checked && label ? label + "." : ""
+            }
+        }
+        toggle.addEventListener("change", apply)
+        apply()
+    })()
+</script>
 <footer>
     Backname is an <a href="https://github.com/Twixes/backname">open-source project</a>.<br/>
     This is a public service by <a href="https://matloka.com">Michael Matloka</a>.
