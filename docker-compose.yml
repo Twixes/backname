@@ -2,6 +2,12 @@ version: "3"
 services:
   dns:
     build: .
+    # json-file logs are unbounded by default; cap total retained size at 2 GiB (2×1g rotated files).
+    logging:
+      driver: json-file
+      options:
+        max-size: "1g"
+        max-file: "2"
     restart: on-failure
     ports:
       - "53:53/udp"
